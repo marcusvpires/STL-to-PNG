@@ -1,0 +1,66 @@
+import os
+import vtkplotlib as vpl
+from stl.mesh import Mesh
+import math
+
+def create_stl_preview_images(stl_filepath):
+    """
+    Generates front, side, and top-down view images for a given STL file.
+    """
+    base_name = os.path.splitext(os.path.basename(stl_filepath))[0]
+    print(f"Processing: {base_name}.stl...")
+
+    try:
+        # Create an isolated figure for each STL file to prevent overlap
+        fig = vpl.figure()
+        fig.background_color = "black"
+        fig.background_opacity = 0.5
+        
+        stl_mesh = Mesh.from_file(stl_filepath)
+
+        # Plot the mesh (generates the initial front view)
+        vpl.mesh_plot(stl_mesh, fig=fig)
+        vpl.save_fig(f'{base_name} - front view.png', fig=fig)
+
+        # --- Side View ---
+        # Get current camera position and rotate it 90 degrees around the x-axis
+        # This effectively moves the camera from the front to the side
+        camera_position = vpl.view(fig=fig)['camera_position']
+        vpl.view(camera_position=(camera_position[0], 0, camera_position[1]), fig=fig)
+        vpl.save_fig(f'{base_name} - side view.png', fig=fig)
+
+        # --- Top View ---
+        # Get the new camera position and rotate it 45 degrees around the z-axis
+        # The values 0.7071 are approx. sin(45°) and cos(45°) for the rotation
+        camera_position = vpl.view(fig=fig)['camera_position']
+        cos_45 = math.cos(math.radians(45))
+        sin_45 = math.sin(math.radians(45))
+        
+        new_x = camera_position[0] * cos_45 - camera_position[1] * sin_45
+        new_y = camera_position[0] * sin_45 + camera_position[1] * cos_45
+        
+        vpl.view(camera_position=(new_x, new_y, camera_position[2]), fig=fig)
+        vpl.save_fig(f'{base_name} - top view.png', fig=fig)
+
+        # Close the plot window to free up memory
+        vpl.close(fig)
+        print(f" -> Successfully created images for {base_name}.stl.")
+
+    except Exception as e:
+        print(f"!! Failed to process {base_name}.stl: {e}")
+
+
+if __name__ == "__main__":
+    current_directory = os.getcwd()
+    
+    # Find all .stl files in the directory (case-insensitive)
+    stl_files = [f for f in os.listdir(current_directory) if f.lower().endswith('.stl')]
+
+    if not stl_files:
+        print("No .stl files found in this directory.")
+    else:
+        print(f"Found {len(stl_files)} STL file(s). Starting process...")
+        for stl_file in stl_files:
+            full_path = os.path.join(current_directory, stl_file)
+            create_stl_preview_images(full_path)
+        print("\nProcess completed.")
